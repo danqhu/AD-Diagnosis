@@ -1,0 +1,451 @@
+package org.huluto.rules
+
+import org.huluto.drools.model.Person
+import org.huluto.drools.model.Person.ADLevel
+import org.huluto.drools.model.Person.TrueOrFalse
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+
+
+rule "是否有（1）记忆力下降（2）知情者证实记忆力下降 | 关系：或  | 否"
+	ruleflow-group "group1"
+	//auto-focus true
+	no-loop true
+	when
+		$person:Person(isMemoryDecrease() == TrueOrFalse.False && isSomeElseIndicateMD() == TrueOrFalse.False)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		//$person.trigger1 = false;
+		//$person.trigger2 = true;
+		update($person);
+		//drools.setFocus("group2");
+	end
+		
+rule "是否有（1）记忆力下降（2）知情者证实记忆力下降 | 关系：或 | 是"
+	ruleflow-group "group1"
+	//auto-focus true
+	no-loop true
+	when
+		$person:Person((isMemoryDecrease() == TrueOrFalse.True || isSomeElseIndicateMD() == TrueOrFalse.True))
+	then
+		System.out.println("是否急性起病？yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setAcuteOccur(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setAcuteOccur(TrueOrFalse.False);
+		//$person.trigger1 = false;
+		//$person.trigger2 = true;
+		update($person);
+		//drools.setFocus("group2");
+	end
+
+
+
+
+
+
+rule "是否急性起病 |是"
+	ruleflow-group "group2"
+	no-loop true
+	when 
+		$person:Person(isAcuteOccur() == TrueOrFalse.True)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		//$person.trigger2 = false;
+		//$person.trigger3 = true;
+		update($person);
+		//drools.setFocus("group3");
+	end
+	
+rule "是否急性起病|否"
+	ruleflow-group "group2"
+	no-loop true
+	when 
+		$person:Person(isAcuteOccur() == TrueOrFalse.False)
+	then
+		System.out.println("自评抑郁量表（SDS）抑郁严重指数：");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		double result = Double.parseDouble(reader.readLine());
+		$person.setSDS(result);
+		//$person.trigger2 = false;
+		//$person.trigger3 = true;
+		update($person);
+		//drools.setFocus("group3");
+	end
+	
+
+
+
+	
+	
+	
+	
+rule "抑郁严重指数<0.5|否"
+	ruleflow-group "group3"
+	no-loop true
+	when 
+		$person:Person(getSDS() >= 0.5)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		//$person.trigger3 = false;
+		update($person);
+	end
+	
+rule "抑郁严重指数<0.5|是"
+	ruleflow-group "group3"
+	no-loop true
+	when
+		$person:Person((getSDS() < 0.5 && getSDS() > 0))
+	then
+		System.out.println("是否有症状进行性加重（包括认知功能、生活行为能力、精神与行为症状）？yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setSymptomsIncreased(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setSymptomsIncreased(TrueOrFalse.False);
+		//$person.trigger3 = false;
+		System.out.println("病史几个月：");
+		//BufferedReader reader2 = new BufferedReader(new InputStreamReader(System.in));
+		int result2 = Integer.parseInt(reader.readLine());
+		$person.setMonthsOfDisease(result2);
+		update($person);
+	end
+	
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+rule "症状进行性加重且病史大于6个月 | 否"
+	ruleflow-group "group4"	
+	no-loop true
+	when
+		$person:Person(isSymptomsIncreased() == TrueOrFalse.False || (getMonthsOfDisease() <= 6 && getMonthsOfDisease() > 0))
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		update($person);
+	end
+	
+rule "症状进行性加重且病史大于6个月 | 是"
+	ruleflow-group "group4"
+	no-loop true	
+	when
+		$person:Person(isSymptomsIncreased() == TrueOrFalse.True && (getMonthsOfDisease() > 6))
+	then
+		System.out.println("早期出现以下症状：步态异常、癫痫、行为学异常？yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setEpilepsy(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setEpilepsy(TrueOrFalse.False);
+		System.out.println("局部神经系统定位体征，如轻偏瘫、感觉缺失、视野缺损？yes/no");
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result2 = reader.readLine();
+		if(result2.equals("yes"))
+			$person.setHemiplegia(TrueOrFalse.True);
+		else if(result2.equals("no"))
+			$person.setHemiplegia(TrueOrFalse.False);
+		update($person);
+	end
+	
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			
+rule "全面躯体及神经系统检查 | 是"
+	ruleflow-group "group5"
+	no-loop true
+	when
+		$person:Person(isEpilepsy() == TrueOrFalse.True || isHemiplegia() == TrueOrFalse.True)
+	then
+		System.out.println("检验Hachinski缺血指数量表：");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		int result = Integer.parseInt(reader.readLine());
+		$person.setHachinski(result);
+		update($person);
+	end
+	
+
+rule "全面躯体及神经系统检查 | 否"
+	ruleflow-group "group5"
+	no-loop true
+	when
+		$person:Person(isEpilepsy() == TrueOrFalse.False && isHemiplegia() == TrueOrFalse.False)
+	then
+		System.out.println("检验血常规正常与否? yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setNormalBloodRoutine(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setNormalBloodRoutine(TrueOrFalse.False);
+		System.out.println("检验尿常规正常与否? yes/no");
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result2 = reader.readLine();
+		if(result2.equals("yes"))
+			$person.setNormalUrineRoutine(TrueOrFalse.True);
+		else if(result2.equals("no"))
+			$person.setNormalUrineRoutine(TrueOrFalse.False);
+		update($person);
+	end
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+rule "Hachinski缺血指数量表 <= 4 | 否"
+	ruleflow-group "group6"
+	no-loop true
+	when
+		$person:Person(getHachinski() > 4)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		update($person);
+	end
+			
+	
+rule "Hachinski缺血指数量表 <= 4 | 是"
+	ruleflow-group "group6"
+	no-loop true
+	when
+		$person:Person(getHachinski() <= 4 && getHachinski() > 0)
+	then
+		System.out.println("检验血常规正常与否? yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setNormalBloodRoutine(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setNormalBloodRoutine(TrueOrFalse.False);
+		System.out.println("检验尿常规正常与否? yes/no");
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result2 = reader.readLine();
+		if(result2.equals("yes"))
+			$person.setNormalUrineRoutine(TrueOrFalse.True);
+		else if(result2.equals("no"))
+			$person.setNormalUrineRoutine(TrueOrFalse.False);
+		update($person);
+	end	
+	
+	
+	
+	
+	
+	
+	
+	
+rule "血常规、尿常规等是否均正常|否"
+	ruleflow-group "group7"
+	no-loop true
+	when
+		$person:Person(isNormalBloodRoutine() == TrueOrFalse.False || isNormalUrineRoutine() == TrueOrFalse.False)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		update($person);
+	end
+	
+
+rule "血常规、尿常规等是否均正常|是"
+	ruleflow-group "group7"
+	no-loop true
+	when
+		$person:Person(isNormalBloodRoutine() == TrueOrFalse.True && isNormalUrineRoutine() == TrueOrFalse.True)
+	then	
+		System.out.println("检查MMSE评分：");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		int result = Integer.parseInt(reader.readLine());
+		$person.setMMSE(result);
+		update($person);
+	end
+	
+	
+	
+	
+	
+	
+rule "MMSE评分检验（默认为初中及以上）"
+	ruleflow-group "group8"
+	no-loop true
+	when
+		$person:Person(getMMSE() <= 24)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		update($person);
+	end
+
+rule "MMSE评分检验"
+	ruleflow-group "group8"
+	no-loop true
+	when
+		$person:Person(getMMSE() > 24)
+	then
+		System.out.println("词表学习：即刻回忆、2min延迟回忆3个以上词语且延迟回忆保持率<80%？ yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setQualifiedByWorkStudy(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setQualifiedByWorkStudy(TrueOrFalse.False);
+		System.out.println("词语流畅性测验<=25？ yes/no");
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result2 = reader.readLine();
+		if(result2.equals("yes"))
+			$person.setQualifiedByFluentTest(TrueOrFalse.True);
+		else if(result2.equals("no"))
+			$person.setQualifiedByFluentTest(TrueOrFalse.False);
+		update($person);
+	end
+	
+
+
+
+
+
+
+
+
+
+
+rule "词语学习及流畅性检测|否"
+	ruleflow-group "group9"
+	no-loop true
+	when
+		$person:Person(isQualifiedByWorkStudy() == TrueOrFalse.False && isQualifiedByFluentTest() == TrueOrFalse.False)
+	then
+		$person.setADResult(ADLevel.Exclusion);
+		update($person);
+	end
+
+rule "词语学习及流畅性检测|是"
+	ruleflow-group "group9"
+	no-loop true
+	when
+		$person:Person(isQualifiedByWorkStudy() == TrueOrFalse.True || isQualifiedByFluentTest() == TrueOrFalse.True)
+	then
+		System.out.println("定性或定量判定颞叶萎缩（包括海马、内嗅区、杏仁核） yes/no");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		String result = reader.readLine();
+		if(result.equals("yes"))
+			$person.setShrinked(TrueOrFalse.True);
+		else if(result.equals("no"))
+			$person.setShrinked(TrueOrFalse.False);
+		System.out.println("颞叶沟回间距：");
+		//BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		int result2 = Integer.parseInt(reader.readLine());
+		$person.setGap(result2);
+		update($person);
+	end
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rule "头CT或MRI检查/头SPECT或PET检查| 否"
+	ruleflow-group "group10"
+	no-loop true
+	when
+		$person:Person(isShrinked() == TrueOrFalse.False && getGap() < 30)
+	then
+		$person.setADResult(ADLevel.CannotBeDiagnosed);
+		update($person);
+	end
+
+rule "头CT或MRI检查/头SPECT或PET检查| 是"
+	ruleflow-group "group10"
+	no-loop true
+	when
+		$person:Person(isShrinked() == TrueOrFalse.True || getGap() >= 30)
+	then
+		System.out.println("检查临床痴呆评定量表（CDR）AD分级：");
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		int result = Integer.parseInt(reader.readLine());
+		$person.setCDR(result);
+		update($person);
+	end
+
+
+
+
+
+
+
+
+
+
+
+rule "根据CDR对AD分级1"
+	ruleflow-group "group11"
+	no-loop true
+	when
+		$person:Person(getCDR() == 1)
+	then
+		$person.setADResult(ADLevel.ADLevel1);
+		update($person);
+	end
+	
+rule "根据CDR对AD分级2"
+	ruleflow-group "group11"
+	no-loop true
+	when
+		$person:Person(getCDR() == 2)
+	then
+		$person.setADResult(ADLevel.ADLevel2);
+		update($person);
+	end
+	
+rule "根据CDR对AD分级3"
+	ruleflow-group "group11"
+	no-loop true
+	when
+		$person:Person(getCDR() == 3)
+	then
+		$person.setADResult(ADLevel.ADLevel3);
+		update($person);
+	end
+		
